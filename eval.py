@@ -232,54 +232,43 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
     validate(val_loader, model, classifier, lws_model, criterion, config, logger, block)
 
 
-def validate(val_loader, model, classifier, lws_model, criterion, config, logger, block=None):
+def validate(val_loader, model, classifier, criterion,device):
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.3f')
     top1 = AverageMeter('Acc@1', ':6.3f')
     top5 = AverageMeter('Acc@5', ':6.3f')
-    progress = ProgressMeter(
-        len(val_loader),
-        [batch_time, losses, top1, top5],
-        prefix='Eval: ')
+    num_classes=100
 
     # switch to evaluate mode
     model.eval()
-    if config.dataset == 'places':
-        block.eval()
     classifier.eval()
-    class_num = torch.zeros(config.num_classes).cuda()
-    correct = torch.zeros(config.num_classes).cuda()
+    class_num = torch.zeros(num_classes).to(device)
+    correct = torch.zeros(num_classes).to(device)
 
     confidence = np.array([])
     pred_class = np.array([])
     true_class = np.array([])
 
     with torch.no_grad():
-        end = time.time()
+#         end = time.time()
         for i, (images, target) in enumerate(val_loader):
-            if config.gpu is not None:
-                images = images.cuda(config.gpu, non_blocking=True)
-            if torch.cuda.is_available():
-                target = target.cuda(config.gpu, non_blocking=True)
+
+            images = images.to(device)
+            target = target.to(device)
 
             # compute output
-            if config.dataset == 'places':
-                feat = block(model(images))
-            else:
-                feat = model(images)
+            feat = model(images)
+
             output = classifier(feat)
-            output = lws_model(output)
-            loss = criterion(output, target)
 
             # measure accuracy and record loss
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
-            losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
 
             _, predicted = output.max(1)
-            target_one_hot = F.one_hot(target, config.num_classes)
-            predict_one_hot = F.one_hot(predicted, config.num_classes)
+            target_one_hot = F.one_hot(target, num_classes)
+            predict_one_hot = F.one_hot(predicted, num_classes)
             class_num = class_num + target_one_hot.sum(dim=0).to(torch.float)
             correct = correct + (target_one_hot + predict_one_hot == 2).sum(dim=0).to(torch.float)
 
@@ -290,24 +279,22 @@ def validate(val_loader, model, classifier, lws_model, criterion, config, logger
             true_class = np.append(true_class, target.cpu().numpy())
 
             # measure elapsed time
-            batch_time.update(time.time() - end)
-            end = time.time()
+ 
 
-            if i % config.print_freq == 0:
-                progress.display(i, logger)
+#             if i % config.print_freq == 0:
+#                 progress.display(i, logger)
 
         acc_classes = correct / class_num
-        head_acc = acc_classes[config.head_class_idx[0]:config.head_class_idx[1]].mean() * 100
-        med_acc = acc_classes[config.med_class_idx[0]:config.med_class_idx[1]].mean() * 100
-        tail_acc = acc_classes[config.tail_class_idx[0]:config.tail_class_idx[1]].mean() * 100
+        head_acc = 0
 
-        logger.info('* Acc@1 {top1.avg:.3f}% Acc@5 {top5.avg:.3f}% HAcc {head_acc:.3f}% MAcc {med_acc:.3f}% TAcc {tail_acc:.3f}%.'.format(top1=top1, top5=top5, head_acc=head_acc, med_acc=med_acc, tail_acc=tail_acc))
+        med_acc = 0
+        tail_acc = 0
+        print('* Acc@1 {top1.avg:.3f}% Acc@5 {top5.avg:.3f}% HAcc {head_acc:.3f}% MAcc {med_acc:.3f}% TAcc {tail_acc:.3f}%.'.format(top1=top1, top5=top5, head_acc=head_acc, med_acc=med_acc, tail_acc=tail_acc))
 
-        cal = calibration(true_class, pred_class, confidence, num_bins=15)
-        logger.info('* ECE   {ece:.3f}%.'.format(ece=cal['expected_calibration_error'] * 100))
+#         cal = calibration(true_class, pred_class, confidence, num_bins=15)
+#         print('* ECE   {ece:.3f}%.'.format(ece=cal['expected_calibration_error'] * 100))
 
-    return top1.avg, cal['expected_calibration_error'] * 100
-
+    return top1.avg, 0
 
 if __name__ == '__main__':
     main()
