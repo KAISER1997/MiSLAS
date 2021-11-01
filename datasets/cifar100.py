@@ -6,7 +6,7 @@ import torchvision
 from torchvision import transforms
 import torchvision.datasets
 
-class IMBALANCECIFAR100(torchvision.datasets.CIFAR100):
+class IMBALANCECIFAR100(torchvision.datasets.CIFAR100):#ora
     cls_num = 100
 
     def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
@@ -96,4 +96,4 @@ class CIFAR100_LT(object):
         self.eval = torch.utils.data.DataLoader(
             eval_dataset,
             batch_size=batch_size, shuffle=False,
-            num_workers=num_works, pin_memory=True)#ora
+            num_workers=num_works, pin_memory=True)
