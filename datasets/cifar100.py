@@ -86,19 +86,14 @@ class CIFAR100_LT(object):
         
         self.cls_num_list = train_dataset.get_cls_num_list()
 
-        self.dist_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if distributed else None
         self.train_instance = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=batch_size, shuffle=True,
-            num_workers=num_works, pin_memory=True, sampler=self.dist_sampler)
+            num_workers=num_works, pin_memory=True, sampler=None)
 
-        balance_sampler = ClassAwareSampler(train_dataset)
-        self.train_balance = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=batch_size, shuffle=False,
-            num_workers=num_works, pin_memory=True, sampler=balance_sampler)
+
 
         self.eval = torch.utils.data.DataLoader(
             eval_dataset,
             batch_size=batch_size, shuffle=False,
-            num_workers=num_works, pin_memory=True)
+            num_workers=num_works, pin_memory=True)#ora
